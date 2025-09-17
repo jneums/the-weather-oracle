@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "TheWeatherOracle": {
+      "type": "http",
+      "url": "https://ipor5-bqaaa-aaaai-q33xa-cai.icp0.io/mcp"
+    }
+  }
+}

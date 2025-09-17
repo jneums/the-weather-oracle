@@ -36,9 +36,9 @@ submission:
 
   # --- Visuals (Replace with your actual asset URLs) ---
   visuals:
-    icon_url: 'https://placehold.co/512x512/1A1A1A/FFFFFF/png?text=WO'
-    banner_url: 'https://placehold.co/1200x630/1A1A1A/FFFFFF/png?text=The+Weather+Oracle'
-    gallery_images: []
+    icon_url: https://github.com/jneums/the-weather-oracle/releases/download/v1.0.1-assets/icon-the-weather-oracle.png
+    banner_url: https://github.com/jneums/the-weather-oracle/releases/download/v1.0.1-assets/banner-the-weather-oracle.png
+    gallery_images: [https://github.com/jneums/the-weather-oracle/releases/download/v1.0.1-assets/banner-the-weather-oracle.png]
 
   # --- BUILD-SPECIFIC - YOU MUST FILL THESE OUT BEFORE PUBLISHING ---
   # The full commit hash of the version you are publishing.
