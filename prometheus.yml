@@ -6,19 +6,19 @@ namespace: io.github.jneums.the-weather-oracle
 submission:
   # --- Core App Information ---
   name: The Weather Oracle
-  description: A reliable, on-chain data service that brings real-world weather conditions to the Internet Computer. Developers can now build weather-aware smart contracts, decentralized insurance protocols, dynamic NFTs, and more.
+  description: A verifiable, on-chain weather oracle powered by IC HTTP outcalls. It delivers trustworthy, real-world weather data from multiple reputable sources directly to AI agents.
   publisher: Atlas Labs
   category: Data & Oracles
 
   # --- Technical & Marketing Details ---
   repo_url: https://github.com/jneums/the-weather-oracle
   mcp_path: /mcp
-  why_this_app: Smart contracts are powerful but blind to the outside world. The Weather Oracle solves this by acting as a trusted bridge, feeding verifiable, real-world weather data directly onto the Internet Computer. This unlocks a new class of decentralized applications that can react to atmospheric events, from parametric insurance for farmers to dynamic, weather-based game mechanics.
+  why_this_app: AI agents and smart contracts require data they can trust. Centralized, off-chain APIs create a security risk, as their data can be manipulated or become a single point of failure. The Weather Oracle solves this problem of trust. Its logic runs entirely on the Internet Computer, meaning its process for fetching, aggregating, and serving data is transparent and verifiable. It uses the IC's native HTTP outcalls to pull information from multiple reputable weather APIs, providing a single, reliable source of truth for mission-critical, weather-aware workflows.
   key_features:
-    - "Global Weather Data: Access current conditions for any location worldwide."
-    - "Fully On-Chain: No reliance on centralized, off-chain servers for data delivery."
-    - "Simple MCP Tool Call: Integrate weather data into your app with a single function call."
-    - "High Availability & Trust: Built on the IC for robust, decentralized operation."
+    - "Verifiable On-Chain Logic: All data fetching and aggregation logic runs transparently as a smart contract, ensuring it cannot be tampered with."
+    - "Reliable & Aggregated Data: Pulls from multiple reputable sources to ensure high availability and guard against single-source failure."
+    - "Built for Autonomous Agents: Provides a secure, trust-minimized data source for AI agents performing on-chain actions."
+    - "Simple MCP Tool Call: Integrate weather data into your app with a single, standardized function call."
   tags:
     - weather
     - oracle
@@ -26,10 +26,11 @@ submission:
     - api
     - real-world-data
     - on-chain
+    - verifiable
+    - trust
+    - ai-agent
     - developer-tools
     - insurance
-    - gaming
-    - nft
     - defi
     - utilities
 
@@ -42,7 +43,7 @@ submission:
   # --- BUILD-SPECIFIC - YOU MUST FILL THESE OUT BEFORE PUBLISHING ---
   # The full commit hash of the version you are publishing.
   # Run `git rev-parse HEAD` to get this value.
-  git_commit: ''
+  git_commit: 44dac65db4d589b4f81cc8cafbd96bb974637608
 
   # The path to the compiled WASM file for this canister.
   # This is typically found in `.dfx/local/canisters/<canister_name>/<canister_name>.wasm`
