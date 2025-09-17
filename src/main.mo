@@ -189,8 +189,8 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     allowanceUrl = null; // No allowance URL needed for free tools.
     // allowanceUrl = ?allowanceUrl; // Uncomment this line if using paid tools.
     serverInfo = {
-      name = "full-onchain-mcp-server";
-      title = "Full On-chain MCP Server";
+      name = "the-weather-oracle";
+      title = "The Weather Oracle";
       version = "0.1.0";
     };
     resources = resources;

@@ -1,0 +1,49 @@
+# Prometheus Application Manifest
+# This is the permanent, unique identifier for your application.
+namespace: io.github.jneums.the-weather-oracle
+
+# This section contains all data for a specific version. This entire package will be submitted for review and locked to the audit of this version.
+submission:
+  # --- Core App Information ---
+  name: The Weather Oracle
+  description: A reliable, on-chain data service that brings real-world weather conditions to the Internet Computer. Developers can now build weather-aware smart contracts, decentralized insurance protocols, dynamic NFTs, and more.
+  publisher: Atlas Labs
+  category: Data & Oracles
+
+  # --- Technical & Marketing Details ---
+  repo_url: https://github.com/jneums/the-weather-oracle
+  mcp_path: /mcp
+  why_this_app: Smart contracts are powerful but blind to the outside world. The Weather Oracle solves this by acting as a trusted bridge, feeding verifiable, real-world weather data directly onto the Internet Computer. This unlocks a new class of decentralized applications that can react to atmospheric events, from parametric insurance for farmers to dynamic, weather-based game mechanics.
+  key_features:
+    - "Global Weather Data: Access current conditions for any location worldwide."
+    - "Fully On-Chain: No reliance on centralized, off-chain servers for data delivery."
+    - "Simple MCP Tool Call: Integrate weather data into your app with a single function call."
+    - "High Availability & Trust: Built on the IC for robust, decentralized operation."
+  tags:
+    - weather
+    - oracle
+    - data
+    - api
+    - real-world-data
+    - on-chain
+    - developer-tools
+    - insurance
+    - gaming
+    - nft
+    - defi
+    - utilities
+
+  # --- Visuals (Replace with your actual asset URLs) ---
+  visuals:
+    icon_url: 'https://placehold.co/512x512/1A1A1A/FFFFFF/png?text=WO'
+    banner_url: 'https://placehold.co/1200x630/1A1A1A/FFFFFF/png?text=The+Weather+Oracle'
+    gallery_images: []
+
+  # --- BUILD-SPECIFIC - YOU MUST FILL THESE OUT BEFORE PUBLISHING ---
+  # The full commit hash of the version you are publishing.
+  # Run `git rev-parse HEAD` to get this value.
+  git_commit: ''
+
+  # The path to the compiled WASM file for this canister.
+  # This is typically found in `.dfx/local/canisters/<canister_name>/<canister_name>.wasm`
+  wasm_path: .dfx/local/canisters/my_mcp_server/my_mcp_server.wasm
