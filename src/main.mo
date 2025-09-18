@@ -156,7 +156,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   // --- 2. DEFINE YOUR TOOL LOGIC ---
   // The `auth` parameter will be `null` if auth is disabled or if the user is anonymous.
   // It will contain user info if auth is enabled and the user provides a valid token.
-  func getWeatherTool(args : McpTypes.JsonValue, auth : ?AuthTypes.AuthInfo, cb : (Result.Result<McpTypes.CallToolResult, McpTypes.HandlerError>) -> ()) {
+  func getWeatherTool(args : McpTypes.JsonValue, auth : ?AuthTypes.AuthInfo, cb : (Result.Result<McpTypes.CallToolResult, McpTypes.HandlerError>) -> ()) : async () {
     let location = switch (Result.toOption(Json.getAsText(args, "location"))) {
       case (?loc) { loc };
       case (null) {
@@ -183,7 +183,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     serverInfo = {
       name = "io.github.jneums.the-weather-oracle";
       title = "The Weather Oracle";
-      version = "0.2.1";
+      version = "0.2.2";
     };
     resources = resources;
     resourceReader = func(uri) {
