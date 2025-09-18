@@ -133,7 +133,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   transient let tools : [McpTypes.Tool] = [{
     name = "get_weather";
     title = ?"Weather Provider";
-    description = ?"Get current weather information for a location";
+    description = ?"Get the current weather for a specified location.";
     inputSchema = Json.obj([
       ("type", Json.str("object")),
       ("properties", Json.obj([("location", Json.obj([("type", Json.str("string")), ("description", Json.str("City name or zip code"))]))])),
@@ -183,7 +183,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     serverInfo = {
       name = "io.github.jneums.the-weather-oracle";
       title = "The Weather Oracle";
-      version = "0.2.0";
+      version = "0.2.1";
     };
     resources = resources;
     resourceReader = func(uri) {
