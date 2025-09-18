@@ -44,8 +44,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   // Resource contents stored in memory for simplicity.
   // In a real application these would probably be uploaded or user generated.
   var resourceContents = [
-    ("file:///main.py", "print('Hello from main.py!')"),
-    ("file:///README.md", "# MCP Motoko Server"),
+    ("file:///README.md", "# The Weather Oracle\n\nWelcome to The Weather Oracle! This project provides accurate and up-to-date weather forecasts using advanced machine learning algorithms."),
   ];
 
   // The application context that holds our state.
@@ -93,16 +92,16 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   // This helps the Prometheus Protocol DAO understand ecosystem growth.
   // =================================================================================
 
-  transient let beaconContext : ?Beacon.BeaconContext = null;
+  // transient let beaconContext : ?Beacon.BeaconContext = null;
 
   // --- UNCOMMENT THIS BLOCK TO ENABLE THE BEACON ---
-  /*
+
   let beaconCanisterId = Principal.fromText("m63pw-fqaaa-aaaai-q33pa-cai");
   transient let beaconContext : ?Beacon.BeaconContext = ?Beacon.init(
-      beaconCanisterId, // Public beacon canister ID
-      1 * 60 * 60, // Send a beacon every 1 hour
+    beaconCanisterId, // Public beacon canister ID
+    ?(15 * 60), // Send a beacon every 15 minutes
   );
-  */
+
   // --- END OF BEACON BLOCK ---
 
   // --- Timers ---
@@ -123,17 +122,10 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   // --- 1. DEFINE YOUR RESOURCES & TOOLS ---
   transient let resources : [McpTypes.Resource] = [
     {
-      uri = "file:///main.py";
-      name = "main.py";
-      title = ?"Main Python Script";
-      description = ?"Contains the main logic of the application.";
-      mimeType = ?"text/x-python";
-    },
-    {
       uri = "file:///README.md";
       name = "README.md";
-      title = ?"Project Documentation";
-      description = null;
+      title = ?"Project README";
+      description = ?"Detailed information about this project.";
       mimeType = ?"text/markdown";
     },
   ];
@@ -189,9 +181,9 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     allowanceUrl = null; // No allowance URL needed for free tools.
     // allowanceUrl = ?allowanceUrl; // Uncomment this line if using paid tools.
     serverInfo = {
-      name = "the-weather-oracle";
+      name = "io.github.jneums.the-weather-oracle";
       title = "The Weather Oracle";
-      version = "0.1.0";
+      version = "0.2.0";
     };
     resources = resources;
     resourceReader = func(uri) {
