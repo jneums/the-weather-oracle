@@ -9,6 +9,9 @@ import Error "mo:base/Error";
 import Float "mo:base/Float";
 import Array "mo:base/Array";
 import Buffer "mo:base/Buffer";
+import Char "mo:base/Char";
+import Nat8 "mo:base/Nat8";
+import Nat32 "mo:base/Nat32";
 
 import HttpTypes "mo:http-types";
 import Map "mo:map/Map";
@@ -114,6 +117,53 @@ shared ({ caller = deployer }) persistent actor class McpServer(
 
   // --- END OF BEACON BLOCK ---
 
+  // This block contains all necessary functions for URL encoding.
+  // It is self-contained and has no external dependencies.
+  private func byteToHex(byte : Nat8) : Text {
+    let n = Nat8.toNat(byte);
+    let high = n / 16;
+    let low = n % 16;
+
+    func nybbleToChar(nybble : Nat) : Char {
+      if (nybble < 10) {
+        return Char.fromNat32(Char.toNat32('0') + Nat32.fromNat(nybble));
+      } else {
+        return Char.fromNat32(Char.toNat32('A') + Nat32.fromNat(nybble) - 10);
+      };
+    };
+
+    return Char.toText(nybbleToChar(high)) # Char.toText(nybbleToChar(low));
+  };
+
+  // This is the corrected version of the function you provided.
+  // It is safe and robust for URL encoding.
+  private func encodeURIComponent(t : Text) : Text {
+    func is_safe(c : Char) : Bool {
+      let code = Char.toNat32(c);
+      // Corrected the logical comparisons (e.g., code >= 97)
+      return (code >= 97 and code <= 122) or // a-z
+      (code >= 65 and code <= 90) or // A-Z
+      (code >= 48 and code <= 57) or // 0-9
+      (code == 45 or code == 95 or code == 46 or code == 126); // - _ . ~
+    };
+
+    var result = "";
+    for (c in t.chars()) {
+      if (is_safe(c)) {
+        result := result # Char.toText(c);
+      } else {
+        // This is the robust way to encode non-safe characters.
+        // 1. Convert the character to its UTF-8 bytes.
+        let utf8_blob = Text.encodeUtf8(Char.toText(c));
+        // 2. Convert each byte to its two-digit hex representation.
+        for (byte in Blob.toArray(utf8_blob).vals()) {
+          result := result # "%" # byteToHex(byte);
+        };
+      };
+    };
+    return result;
+  };
+
   // --- Timers ---
   Cleanup.startCleanupTimer<system>(appContext);
 
@@ -193,12 +243,14 @@ shared ({ caller = deployer }) persistent actor class McpServer(
       };
     };
 
+    let locationEncoded = encodeURIComponent(location);
+
     let include = if (granularity == "daily") { "days" } else { "hours" };
     let dateRange = if (granularity == "daily") { "next7days" } else {
       "next24hours";
     };
     let numDays = if (granularity == "daily") { 7 } else { 1 };
-    let url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/" # location # "/" # dateRange # "?unitGroup=us&include=" # include # "&key=" # api_key # "&contentType=json";
+    let url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/" # locationEncoded # "/" # dateRange # "?unitGroup=us&include=" # include # "&key=" # api_key # "&contentType=json";
 
     let http_request : IC.HttpRequestArgs = {
       url = url;
@@ -326,7 +378,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     serverInfo = {
       name = "io.github.jneums.the-weather-oracle";
       title = "The Weather Oracle";
-      version = "1.0.0";
+      version = "1.0.1";
     };
     resources = resources;
     resourceReader = func(uri) {
