@@ -4,6 +4,11 @@ import Blob "mo:base/Blob";
 import Debug "mo:base/Debug";
 import Principal "mo:base/Principal";
 import Option "mo:base/Option";
+import Nat "mo:base/Nat";
+import Error "mo:base/Error";
+import Float "mo:base/Float";
+import Array "mo:base/Array";
+import Buffer "mo:base/Buffer";
 
 import HttpTypes "mo:http-types";
 import Map "mo:map/Map";
@@ -26,6 +31,7 @@ import ApiKey "mo:mcp-motoko-sdk/auth/ApiKey";
 import SrvTypes "mo:mcp-motoko-sdk/server/Types";
 
 import IC "mo:ic";
+import { ic } "mo:ic";
 
 shared ({ caller = deployer }) persistent actor class McpServer(
   args : ?{
@@ -36,6 +42,10 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   // The canister owner, who can manage treasury funds.
   // Defaults to the deployer if not specified.
   var owner : Principal = Option.get(do ? { args!.owner! }, deployer);
+  var visual_crossing_api_key : ?Text = null;
+
+  // A reasonable amount of cycles for a single HTTPS GET request.
+  let HTTPS_OUTCALL_CYCLES : Nat = 30_000_000_000; // 30B cycles
 
   // State for certified HTTP assets (like /.well-known/...)
   var stable_http_assets : HttpAssets.StableEntries = [];
@@ -130,33 +140,45 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     },
   ];
 
-  transient let tools : [McpTypes.Tool] = [{
-    name = "get_weather";
-    title = ?"Weather Provider";
-    description = ?"Get the current weather for a specified location.";
-    inputSchema = Json.obj([
-      ("type", Json.str("object")),
-      ("properties", Json.obj([("location", Json.obj([("type", Json.str("string")), ("description", Json.str("City name or zip code"))]))])),
-      ("required", Json.arr([Json.str("location")])),
-    ]);
-    outputSchema = ?Json.obj([
-      ("type", Json.str("object")),
-      ("properties", Json.obj([("report", Json.obj([("type", Json.str("string")), ("description", Json.str("The textual weather report."))]))])),
-      ("required", Json.arr([Json.str("report")])),
-    ]);
-
-    payment = null; // No payment required, this tool is free to use.
-    // To require payment, set the `payment` field like this:
-    // payment = ?{
-    //   ledger = Principal.fromText("vizcg-th777-77774-qaaea-cai"); // ICRC2 Ledger canister ID
-    //   amount = 10_000; // Amount in e8s (1 ICP)
-    // };
-  }];
+  transient let tools : [McpTypes.Tool] = [
+    {
+      name = "get_weather_for_day";
+      title = ?"Get Weather for Day";
+      description = ?"Get the weather for a specific location with hourly granularity.";
+      inputSchema = Json.obj([
+        ("type", Json.str("object")),
+        ("properties", Json.obj([("location", Json.obj([("type", Json.str("string")), ("description", Json.str("City name or zip code"))]))])),
+        ("required", Json.arr([Json.str("location")])),
+      ]);
+      outputSchema = ?Json.obj([
+        ("type", Json.str("object")),
+        ("properties", Json.obj([("report", Json.obj([("type", Json.str("string")), ("description", Json.str("The textual weather report."))]))])),
+        ("required", Json.arr([Json.str("report")])),
+      ]);
+      payment = null;
+    },
+    {
+      name = "get_weather_for_week";
+      title = ?"Get Weather for Week";
+      description = ?"Get the weather for the week for a specific location with daily granularity.";
+      inputSchema = Json.obj([
+        ("type", Json.str("object")),
+        ("properties", Json.obj([("location", Json.obj([("type", Json.str("string")), ("description", Json.str("City name or zip code"))]))])),
+        ("required", Json.arr([Json.str("location")])),
+      ]);
+      outputSchema = ?Json.obj([
+        ("type", Json.str("object")),
+        ("properties", Json.obj([("report", Json.obj([("type", Json.str("string")), ("description", Json.str("The textual weather report."))]))])),
+        ("required", Json.arr([Json.str("report")])),
+      ]);
+      payment = null;
+    },
+  ];
 
   // --- 2. DEFINE YOUR TOOL LOGIC ---
   // The `auth` parameter will be `null` if auth is disabled or if the user is anonymous.
   // It will contain user info if auth is enabled and the user provides a valid token.
-  func getWeatherTool(args : McpTypes.JsonValue, auth : ?AuthTypes.AuthInfo, cb : (Result.Result<McpTypes.CallToolResult, McpTypes.HandlerError>) -> ()) : async () {
+  func getWeatherTool(granularity : Text, args : McpTypes.JsonValue, auth : ?AuthTypes.AuthInfo, cb : (Result.Result<McpTypes.CallToolResult, McpTypes.HandlerError>) -> ()) : async () {
     let location = switch (Result.toOption(Json.getAsText(args, "location"))) {
       case (?loc) { loc };
       case (null) {
@@ -164,15 +186,136 @@ shared ({ caller = deployer }) persistent actor class McpServer(
       };
     };
 
-    // The human-readable report.
-    let report = "The weather in " # location # " is sunny.";
+    let api_key = switch (visual_crossing_api_key) {
+      case (?key) { key };
+      case (null) {
+        return cb(#ok({ content = [#text({ text = "API key not set." })]; isError = true; structuredContent = null }));
+      };
+    };
 
-    // Build the structured JSON payload that matches our outputSchema.
-    let structuredPayload = Json.obj([("report", Json.str(report))]);
-    let stringified = Json.stringify(structuredPayload, null);
+    let include = if (granularity == "daily") { "days" } else { "hours" };
+    let dateRange = if (granularity == "daily") { "next7days" } else {
+      "next24hours";
+    };
+    let numDays = if (granularity == "daily") { 7 } else { 1 };
+    let url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/" # location # "/" # dateRange # "?unitGroup=us&include=" # include # "&key=" # api_key # "&contentType=json";
 
-    // Return the full, compliant result.
-    cb(#ok({ content = [#text({ text = stringified })]; isError = false; structuredContent = ?structuredPayload }));
+    let http_request : IC.HttpRequestArgs = {
+      url = url;
+      max_response_bytes = null;
+      headers = [];
+      body = null;
+      method = #get;
+      is_replicated = ?false;
+      transform = null;
+    };
+
+    try {
+      let http_response = await (with cycles = HTTPS_OUTCALL_CYCLES) ic.http_request(http_request);
+
+      if (http_response.status < 200 or http_response.status >= 300) {
+        let error_msg = "HTTP request failed with status " # Nat.toText(http_response.status);
+        return cb(#ok({ content = [#text({ text = error_msg })]; isError = true; structuredContent = null }));
+      };
+
+      let body = switch (Text.decodeUtf8(http_response.body)) {
+        case (null) {
+          return cb(#ok({ content = [#text({ text = "Failed to decode response body." })]; isError = true; structuredContent = null }));
+        };
+        case (?text) { text };
+      };
+
+      let parsed_body = Json.parse(body);
+
+      switch (parsed_body) {
+        case (#err(e)) {
+          // Using your debug_show for better error messages
+          cb(#ok({ content = [#text({ text = "Failed to parse JSON response: " # debug_show (e) })]; isError = true; structuredContent = null }));
+        };
+        case (#ok(json)) {
+          var report = "";
+          var forecast_days = Buffer.Buffer<Json.Json>(numDays);
+
+          let add_field = func(fields : Buffer.Buffer<(Text, Json.Json)>, source : Json.Json, key : Text, is_num : Bool) {
+            if (is_num) {
+              // Using your getAsFloat which is correct for numeric weather values
+              switch (Result.toOption(Json.getAsFloat(source, key))) {
+                case (?val) { fields.add((key, Json.float(val))) };
+                case _ {};
+              };
+            } else {
+              switch (Result.toOption(Json.getAsText(source, key))) {
+                case (?val) { fields.add((key, Json.str(val))) };
+                case _ {};
+              };
+            };
+          };
+
+          switch (Result.toOption(Json.getAsArray(json, "days"))) {
+            case (?days_array) {
+              report := if (granularity == "daily") {
+                "Weather for the week in " # location # ":\n";
+              } else { "Weather for today in " # location # ":\n" };
+
+              for (day in days_array.vals()) {
+                switch ((Result.toOption(Json.getAsText(day, "datetime")), Result.toOption(Json.getAsFloat(day, "temp")), Result.toOption(Json.getAsText(day, "conditions")))) {
+                  case (?d, ?t, ?c) {
+                    report := report # d # ": " # Float.toText(t) # "F, " # c # "\n";
+                  };
+                  case _ {};
+                };
+
+                let text_fields = ["datetime", "conditions", "description", "icon"];
+                let num_fields = ["tempmax", "tempmin", "temp", "feelslike", "humidity", "precip", "precipprob", "windspeed", "cloudcover", "uvindex"];
+                var day_obj_fields = Buffer.Buffer<(Text, Json.Json)>(text_fields.size() + num_fields.size() + 1);
+                for (key in text_fields.vals()) {
+                  add_field(day_obj_fields, day, key, false);
+                };
+                for (key in num_fields.vals()) {
+                  add_field(day_obj_fields, day, key, true);
+                };
+
+                if (granularity != "daily") {
+                  switch (Result.toOption(Json.getAsArray(day, "hours"))) {
+                    case (?hours_array) {
+                      var hour_list = Buffer.Buffer<Json.Json>(24);
+                      for (hour in hours_array.vals()) {
+                        let hour_text_fields = ["datetime", "conditions", "icon"];
+                        let hour_num_fields = ["temp", "feelslike", "humidity", "precip", "precipprob", "windspeed"];
+                        var hour_obj_fields = Buffer.Buffer<(Text, Json.Json)>(hour_text_fields.size() + hour_num_fields.size());
+                        for (key in hour_text_fields.vals()) {
+                          add_field(hour_obj_fields, hour, key, false);
+                        };
+                        for (key in hour_num_fields.vals()) {
+                          add_field(hour_obj_fields, hour, key, true);
+                        };
+                        hour_list.add(Json.obj(Buffer.toArray(hour_obj_fields)));
+                      };
+                      day_obj_fields.add(("hours", Json.arr(Buffer.toArray(hour_list))));
+                    };
+                    case _ {};
+                  };
+                };
+                forecast_days.add(Json.obj(Buffer.toArray(day_obj_fields)));
+              };
+            };
+            case _ {};
+          };
+
+          let structuredPayload = Json.obj([
+            ("report", Json.str(report)),
+            ("forecast", Json.arr(Buffer.toArray(forecast_days))),
+          ]);
+
+          // This is the single correction from my previous attempt, now applied to your working code.
+          // `content` is the stringified version of `structuredContent`.
+          cb(#ok({ content = [#text({ text = Json.stringify(structuredPayload, null) })]; isError = false; structuredContent = ?structuredPayload }));
+        };
+      };
+    } catch (e) {
+      let error_msg = "HTTP request failed: " # Error.message(e);
+      cb(#ok({ content = [#text({ text = error_msg })]; isError = true; structuredContent = null }));
+    };
   };
 
   // --- 3. CONFIGURE THE SDK ---
@@ -183,7 +326,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     serverInfo = {
       name = "io.github.jneums.the-weather-oracle";
       title = "The Weather Oracle";
-      version = "0.2.2";
+      version = "1.0.0";
     };
     resources = resources;
     resourceReader = func(uri) {
@@ -191,7 +334,22 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     };
     tools = tools;
     toolImplementations = [
-      ("get_weather", getWeatherTool),
+      (
+        "get_weather_for_day",
+        func(
+          args : McpTypes.JsonValue,
+          auth : ?AuthTypes.AuthInfo,
+          cb : (Result.Result<McpTypes.CallToolResult, McpTypes.HandlerError>) -> (),
+        ) : async () { await getWeatherTool("hourly", args, auth, cb) },
+      ),
+      (
+        "get_weather_for_week",
+        func(
+          args : McpTypes.JsonValue,
+          auth : ?AuthTypes.AuthInfo,
+          cb : (Result.Result<McpTypes.CallToolResult, McpTypes.HandlerError>) -> (),
+        ) : async () { await getWeatherTool("daily", args, auth, cb) },
+      ),
     ];
     beacon = beaconContext;
   };
@@ -200,6 +358,11 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   transient let mcpServer = Mcp.createServer(mcpConfig);
 
   // --- PUBLIC ENTRY POINTS ---
+
+  public shared ({ caller }) func set_api_key(key : Text) : async () {
+    if (caller != owner) { Debug.trap("Only the owner can set the API key.") };
+    visual_crossing_api_key := ?key;
+  };
 
   /// Get the current owner of the canister.
   public query func get_owner() : async Principal { return owner };
@@ -310,7 +473,6 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     let ctx : HttpHandler.Context = _create_http_context();
     return HttpHandler.http_request_streaming_callback(ctx, token);
   };
-
   // --- CANISTER LIFECYCLE MANAGEMENT ---
 
   system func preupgrade() {
