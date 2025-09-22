@@ -1,8 +1,8 @@
 [package]
-name = "my-mcp-server"
-version = "1.0.0"
+name = "the-weather-oracle"
+version = "0.1.0"
 description = "A Motoko MCP server created with create-motoko-mcp-server"
-repository = "https://github.com/username/my-mcp-server"
+repository = "https://github.com/jneums/the-weather-oracle"
 keywords = [ ]
 license = "MIT"
 

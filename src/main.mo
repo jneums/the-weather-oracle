@@ -207,7 +207,10 @@ shared ({ caller = deployer }) persistent actor class McpServer(
         ("properties", Json.obj([("report", Json.obj([("type", Json.str("string")), ("description", Json.str("The textual weather report."))]))])),
         ("required", Json.arr([Json.str("report")])),
       ]);
-      payment = null;
+      payment = ?{
+        ledger = Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai");
+        amount = 100_000;
+      };
     },
     {
       name = "get_weather_for_week";
