@@ -384,7 +384,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
     serverInfo = {
       name = "io.github.jneums.the-weather-oracle";
       title = "The Weather Oracle";
-      version = "1.0.2";
+      version = "1.0.3";
     };
     resources = resources;
     resourceReader = func(uri) {
