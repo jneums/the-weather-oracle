@@ -73,31 +73,32 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   // See the README for more details.
   // =================================================================================
 
-  transient let authContext : ?AuthTypes.AuthContext = null;
+  // transient let authContext : ?AuthTypes.AuthContext = null;
 
   // --- UNCOMMENT THIS BLOCK TO ENABLE AUTHENTICATION ---
 
-  // let issuerUrl = "https://bfggx-7yaaa-aaaai-q32gq-cai.icp0.io";
-  // let allowanceUrl = "https://prometheusprotocol.org/connections";
-  // let requiredScopes = ["openid"];
+  let issuerUrl = "https://bfggx-7yaaa-aaaai-q32gq-cai.icp0.io";
+  let allowanceUrl = "https://prometheusprotocol.org";
+  let requiredScopes = ["openid"];
 
-  // //function to transform the response for jwks client
-  // public query func transformJwksResponse({
-  //   context : Blob;
-  //   response : IC.HttpRequestResult;
-  // }) : async IC.HttpRequestResult {
-  //   {
-  //     response with headers = []; // not intersted in the headers
-  //   };
-  // };
+  //function to transform the response for jwks client
+  public query func transformJwksResponse({
+    context : Blob;
+    response : IC.HttpRequestResult;
+  }) : async IC.HttpRequestResult {
+    {
+      response with headers = []; // not intersted in the headers
+    };
+  };
 
-  // // Initialize the auth context with the issuer URL and required scopes.
-  // transient let authContext : ?AuthTypes.AuthContext = ?AuthState.init(
-  //   Principal.fromActor(self),
-  //   issuerUrl,
-  //   requiredScopes,
-  //   transformJwksResponse,
-  // );
+  // Initialize the auth context with the issuer URL and required scopes.
+  transient let authContext : ?AuthTypes.AuthContext = ?AuthState.init(
+    Principal.fromActor(self),
+    owner,
+    issuerUrl,
+    requiredScopes,
+    transformJwksResponse,
+  );
 
   // --- END OF AUTHENTICATION BLOCK ---
 
@@ -207,10 +208,7 @@ shared ({ caller = deployer }) persistent actor class McpServer(
         ("properties", Json.obj([("report", Json.obj([("type", Json.str("string")), ("description", Json.str("The textual weather report."))]))])),
         ("required", Json.arr([Json.str("report")])),
       ]);
-      payment = ?{
-        ledger = Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai");
-        amount = 100_000;
-      };
+      payment = null;
     },
     {
       name = "get_weather_for_week";
@@ -226,7 +224,10 @@ shared ({ caller = deployer }) persistent actor class McpServer(
         ("properties", Json.obj([("report", Json.obj([("type", Json.str("string")), ("description", Json.str("The textual weather report."))]))])),
         ("required", Json.arr([Json.str("report")])),
       ]);
-      payment = null;
+      payment = ?{
+        ledger = Principal.fromText("53nhb-haaaa-aaaar-qbn5q-cai");
+        amount = 30_000;
+      };
     },
   ];
 
@@ -378,12 +379,12 @@ shared ({ caller = deployer }) persistent actor class McpServer(
   // --- 3. CONFIGURE THE SDK ---
   transient let mcpConfig : McpTypes.McpConfig = {
     self = Principal.fromActor(self);
-    allowanceUrl = null; // No allowance URL needed for free tools.
-    // allowanceUrl = ?allowanceUrl; // Uncomment this line if using paid tools.
+    // allowanceUrl = null; // No allowance URL needed for free tools.
+    allowanceUrl = ?allowanceUrl; // Uncomment this line if using paid tools.
     serverInfo = {
       name = "io.github.jneums.the-weather-oracle";
       title = "The Weather Oracle";
-      version = "1.0.1";
+      version = "1.0.2";
     };
     resources = resources;
     resourceReader = func(uri) {
